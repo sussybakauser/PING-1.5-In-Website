@@ -60,14 +60,22 @@ const ctx = canvas.getContext('2d');
 const mensaje = document.getElementById('mensaje');
 const btnReiniciar = document.getElementById('btnReiniciar');
 
-// Reemplaza "TU_USUARIO" y "TU_REPOSITORIO" con los datos reales de tu cuenta de GitHub
-const URL_AUDIO_GITHUB = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Audio/Cube%20Sounds/ping.ogg';
+// Rutas de audio en GitHub Raw
+const URL_AUDIO_PING = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Audio/Cube%20Sounds/ping.ogg';
+const URL_AUDIO_BREAK = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Audio/Cube%20Sounds/breakblock.ogg';
 
-const sonidoRebote = new Audio(URL_AUDIO_GITHUB);
+// Objetos de Audio
+const sonidoRebote = new Audio(URL_AUDIO_PING);
+const sonidoBreak = new Audio(URL_AUDIO_BREAK);
 
 function reproducirSonidoRebote() {
     sonidoRebote.currentTime = 0;
     sonidoRebote.play().catch(e => console.log("Interacción requerida para audio:", e));
+}
+
+function reproducirSonidoBreak() {
+    sonidoBreak.currentTime = 0;
+    sonidoBreak.play().catch(e => console.log("Interacción requerida para audio:", e));
 }
 
 // Configuración de límites
@@ -150,13 +158,15 @@ canvas.addEventListener('click', (e) => {
 });
 
 function procesarRebote() {
-    reproducirSonidoRebote();
     rebotesRestantes--;
     
     if (rebotesRestantes <= 0) {
+        reproducirSonidoBreak(); // Sonido al romperse/perder
         reiniciarJuego();
         mensaje.style.color = '#f44336';
         mensaje.textContent = "¡Límite de rebotes alcanzado! Nivel reiniciado.";
+    } else {
+        reproducirSonidoRebote(); // Sonido normal de rebote
     }
 }
 
