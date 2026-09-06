@@ -60,22 +60,26 @@ const ctx = canvas.getContext('2d');
 const mensaje = document.getElementById('mensaje');
 const btnReiniciar = document.getElementById('btnReiniciar');
 
-// Rutas de audio e imagen en GitHub Raw
+// Rutas de audio e imágenes en GitHub Raw
 const URL_AUDIO_PING = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Audio/Cube%20Sounds/ping.ogg';
 const URL_AUDIO_BREAK = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Audio/Cube%20Sounds/breakblock.ogg';
-const URL_SPRITE_CUBO = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Sprites/Cube.png';
+const URL_SPRITE_CUBE = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Sprites/Cube.png';
+const URL_SPRITE_CIRCLE = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Sprites/Circle.png';
 
-// Objetos de Audio y Sprite
+// Objetos de Audio
 const sonidoRebote = new Audio(URL_AUDIO_PING);
 const sonidoBreak = new Audio(URL_AUDIO_BREAK);
 
+// Carga de Sprites
 const spriteCubo = new Image();
-spriteCubo.src = URL_SPRITE_CUBO;
-let spriteCargado = false;
+spriteCubo.src = URL_SPRITE_CUBE;
+let spriteCuboCargado = false;
+spriteCubo.onload = () => { spriteCuboCargado = true; };
 
-spriteCubo.onload = () => {
-    spriteCargado = true;
-};
+const spriteCirculo = new Image();
+spriteCirculo.src = URL_SPRITE_CIRCLE;
+let spriteCirculoCargado = false;
+spriteCirculo.onload = () => { spriteCirculoCargado = true; };
 
 function reproducirSonidoRebote() {
     sonidoRebote.currentTime = 0;
@@ -104,7 +108,7 @@ const cubo = {
     tamano: 30,
     vx: 0,
     vy: 0,
-    color: '#00adb5' // Color de respaldo en caso de que la imagen no cargue
+    color: '#00adb5'
 };
 
 // Propiedades del Objetivo
@@ -242,18 +246,27 @@ function dibujarUI() {
 function dibujar() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Objetivo
-    ctx.beginPath();
-    ctx.arc(objetivo.x, objetivo.y, objetivo.radio, 0, Math.PI * 2);
-    ctx.fillStyle = objetivo.color;
-    ctx.fill();
-    ctx.closePath();
+    // Renderizar Sprite del Objetivo (Círculo)
+    if (spriteCirculoCargado) {
+        ctx.drawImage(
+            spriteCirculo,
+            objetivo.x - objetivo.radio,
+            objetivo.y - objetivo.radio,
+            objetivo.radio * 2,
+            objetivo.radio * 2
+        );
+    } else {
+        ctx.beginPath();
+        ctx.arc(objetivo.x, objetivo.y, objetivo.radio, 0, Math.PI * 2);
+        ctx.fillStyle = objetivo.color;
+        ctx.fill();
+        ctx.closePath();
+    }
 
     // Renderizar Sprite del Cubo
-    if (spriteCargado) {
+    if (spriteCuboCargado) {
         ctx.drawImage(spriteCubo, cubo.x, cubo.y, cubo.tamano, cubo.tamano);
     } else {
-        // Renderizado de reserva por si tarda la conexión
         ctx.fillStyle = cubo.color;
         ctx.fillRect(cubo.x, cubo.y, cubo.tamano, cubo.tamano);
     }
