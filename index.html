@@ -111,12 +111,12 @@ const cubo = {
     color: '#00adb5'
 };
 
-// Propiedades del Objetivo
+// Propiedades del Objetivo (Meta)
 const objetivo = {
     x: 700,
     y: 250,
     radio: 25,
-    color: '#ff5722'
+    color: '#ff5722' // Color naranja para la meta
 };
 
 function reiniciarJuego() {
@@ -246,8 +246,11 @@ function dibujarUI() {
 function dibujar() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Renderizar Sprite del Objetivo (Círculo)
+    // Renderizar Sprite del Objetivo (Meta Naranja)
     if (spriteCirculoCargado) {
+        ctx.save();
+        // Aplica un filtro de tono/saturación para asegurar que se proyecte en tono naranja (#ff5722)
+        ctx.filter = 'sepia(100%) hue-rotate(-20deg) saturate(500%)';
         ctx.drawImage(
             spriteCirculo,
             objetivo.x - objetivo.radio,
@@ -255,10 +258,11 @@ function dibujar() {
             objetivo.radio * 2,
             objetivo.radio * 2
         );
+        ctx.restore();
     } else {
         ctx.beginPath();
         ctx.arc(objetivo.x, objetivo.y, objetivo.radio, 0, Math.PI * 2);
-        ctx.fillStyle = objetivo.color;
+        ctx.fillStyle = objetivo.color; // Naranja (#ff5722)
         ctx.fill();
         ctx.closePath();
     }
