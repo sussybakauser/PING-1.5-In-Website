@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>PING 1.5 - Juego del Cubo</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        .top-bar {
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            background-color: #ff5722;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #e64a19;
+        }
+        canvas {
+            border: 3px solid #ffffff;
+            background-color: #111;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #mensaje {
+            margin-top: 15px;
+            font-size: 20px;
+            font-weight: bold;
+            height: 25px;
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <button id="btnReiniciar">Reiniciar Juego</button>
+    </div>
+
+    <canvas id="gameCanvas" width="800" height="500"></canvas>
+    <div id="mensaje">Haz clic para lanzar el cubo (Presiona 'P' para pausar).</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const mensaje = document.getElementById('mensaje');
+const btnReiniciar = document.getElementById('btnReiniciar');
+
+// Reemplaza "TU_USUARIO" y "TU_REPOSITORIO" con los datos reales de tu cuenta de GitHub
+const URL_AUDIO_GITHUB = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/Audio/Cube%20Sounds/ping.ogg';
+
+const sonidoRebote = new Audio(URL_AUDIO_GITHUB);
+
+function reproducirSonidoRebote() {
+    sonidoRebote.currentTime = 0;
+    sonidoRebote.play().catch(e => console.log("Interacción requerida para audio:", e));
+}
+
+// Configuración de límites
+const MAX_DISPAROS = 5;
+const MAX_REBOTES = 10;
+const VELOCIDAD_PING = 7;
+
+let disparosRestantes = MAX_DISPAROS;
+let rebotesRestantes = MAX_REBOTES;
+let victoria = false;
+let pausado = false;
+
+// Propiedades del Cubo
+const cubo = {
+    x: 100,
+    y: 250,
+    tamano: 30,
+    vx: 0,
+    vy: 0,
+    color: '#00adb5'
+};
+
+// Propiedades del Objetivo
+const objetivo = {
+    x: 700,
+    y: 250,
+    radio: 25,
+    color: '#ff5722'
+};
+
+function reiniciarJuego() {
+    cubo.x = 100;
+    cubo.y = 250;
+    cubo.vx = 0;
+    cubo.vy = 0;
+    disparosRestantes = MAX_DISPAROS;
+    rebotesRestantes = MAX_REBOTES;
+    victoria = false;
+    pausado = false;
+    mensaje.style.color = '#4CAF50';
+    mensaje.textContent = "Haz clic para lanzar el cubo (Presiona 'P' para pausar).";
+}
+
+btnReiniciar.addEventListener('click', reiniciarJuego);
+
+// Control de Pausa
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'p' || e.key === 'P') {
+        if (victoria) return;
+        
+        pausado = !pausado;
+        if (pausado) {
+            mensaje.style.color = '#ffeb3b';
+            mensaje.textContent = "JUEGO PAUSADO. Presiona 'P' para continuar.";
+        } else {
+            mensaje.style.color = '#4CAF50';
+            mensaje.textContent = "Haz clic para lanzar el cubo (Presiona 'P' para pausar).";
+        }
+    }
+});
+
+// Evento de Clic
+canvas.addEventListener('click', (e) => {
+    if (victoria || pausado) return;
+
+    if (disparosRestantes > 0) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const dx = mouseX - (cubo.x + cubo.tamano / 2);
+        const dy = mouseY - (cubo.y + cubo.tamano / 2);
+
+        const angulo = Math.atan2(dy, dx);
+        cubo.vx = Math.cos(angulo) * VELOCIDAD_PING;
+        cubo.vy = Math.sin(angulo) * VELOCIDAD_PING;
+
+        disparosRestantes--;
+    }
+});
+
+function procesarRebote() {
+    reproducirSonidoRebote();
+    rebotesRestantes--;
+    
+    if (rebotesRestantes <= 0) {
+        reiniciarJuego();
+        mensaje.style.color = '#f44336';
+        mensaje.textContent = "¡Límite de rebotes alcanzado! Nivel reiniciado.";
+    }
+}
+
+function actualizar() {
+    if (victoria || pausado) return;
+
+    cubo.x += cubo.vx;
+    cubo.y += cubo.vy;
+
+    // Rebotes en bordes
+    if (cubo.x <= 0) {
+        cubo.x = 0;
+        cubo.vx *= -1;
+        procesarRebote();
+    } else if (cubo.x + cubo.tamano >= canvas.width) {
+        cubo.x = canvas.width - cubo.tamano;
+        cubo.vx *= -1;
+        procesarRebote();
+    }
+
+    if (cubo.y <= 0) {
+        cubo.y = 0;
+        cubo.vy *= -1;
+        procesarRebote();
+    } else if (cubo.y + cubo.tamano >= canvas.height) {
+        cubo.y = canvas.height - cubo.tamano;
+        cubo.vy *= -1;
+        procesarRebote();
+    }
+
+    // Colisión con el objetivo
+    const centroCuboX = cubo.x + cubo.tamano / 2;
+    const centroCuboY = cubo.y + cubo.tamano / 2;
+    const dist = Math.hypot(objetivo.x - centroCuboX, objetivo.y - centroCuboY);
+
+    if (dist < objetivo.radio + cubo.tamano / 2) {
+        victoria = true;
+        cubo.vx = 0;
+        cubo.vy = 0;
+        mensaje.style.color = '#4CAF50';
+        mensaje.textContent = "¡Ganaste!";
+    }
+}
+
+function dibujarUI() {
+    ctx.font = '16px Arial';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'left';
+    
+    ctx.fillText(`Disparos: ${disparosRestantes}/${MAX_DISPAROS}`, 20, canvas.height - 20);
+    ctx.fillText(`Rebotes restantes: ${rebotesRestantes}`, 20, 30);
+
+    if (pausado) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.font = '30px Arial';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.fillText('PAUSA', canvas.width / 2, canvas.height / 2);
+    }
+}
+
+function dibujar() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.beginPath();
+    ctx.arc(objetivo.x, objetivo.y, objetivo.radio, 0, Math.PI * 2);
+    ctx.fillStyle = objetivo.color;
+    ctx.fill();
+    ctx.closePath();
+
+    ctx.fillStyle = cubo.color;
+    ctx.fillRect(cubo.x, cubo.y, cubo.tamano, cubo.tamano);
+
+    dibujarUI();
+}
+
+function gameLoop() {
+    actualizar();
+    dibujar();
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+
+</body>
+</html>
