@@ -17,6 +17,8 @@
         }
         .top-bar {
             margin-bottom: 10px;
+            display: flex;
+            gap: 10px;
         }
         button {
             padding: 8px 16px;
@@ -52,7 +54,7 @@
     </div>
 
     <canvas id="gameCanvas" width="800" height="500"></canvas>
-    <div id="mensaje">Haz clic para lanzar el cubo (Presiona 'P' para pausar).</div>
+    <div id="mensaje">Cargando nivel World1-1...</div>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
@@ -60,11 +62,12 @@ const ctx = canvas.getContext('2d');
 const mensaje = document.getElementById('mensaje');
 const btnReiniciar = document.getElementById('btnReiniciar');
 
-// Rutas de audio e imágenes en GitHub Raw
+// Rutas de audio, imágenes y niveles en GitHub Raw
 const URL_AUDIO_PING = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Audio/Cube%20Sounds/ping.ogg';
 const URL_AUDIO_BREAK = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Audio/Cube%20Sounds/breakblock.ogg';
 const URL_SPRITE_CUBE = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Sprites/Cube.png';
 const URL_SPRITE_CIRCLE = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Sprites/Circle.png';
+const URL_NIVEL_WORLD1 = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Levels/World1-1.json';
 
 // Objetos de Audio
 const sonidoRebote = new Audio(URL_AUDIO_PING);
@@ -91,15 +94,21 @@ function reproducirSonidoBreak() {
     sonidoBreak.play().catch(e => console.log("Interacción requerida para audio:", e));
 }
 
-// Configuración de límites
-const MAX_DISPAROS = 5;
-const MAX_REBOTES = 10;
+// Configuración de límites y variables de control
+let MAX_DISPAROS = 5;
+let MAX_REBOTES = 10;
 const VELOCIDAD_PING = 7;
 
 let disparosRestantes = MAX_DISPAROS;
 let rebotesRestantes = MAX_REBOTES;
 let victoria = false;
 let pausado = false;
+
+// Estado del Nivel
+let nivelData = null;
+let obstaculos = [];
+let cuboInicialX = 100;
+let cuboInicialY = 250;
 
 // Propiedades del Cubo
 const cubo = {
@@ -116,12 +125,53 @@ const objetivo = {
     x: 700,
     y: 250,
     radio: 25,
-    color: '#ff5722' // Color naranja para la meta
+    color: '#ff5722'
 };
 
+// Cargar Datos del Nivel desde JSON
+async function cargarNivel(url) {
+    try {
+        const respuesta = await fetch(url);
+        if (!respuesta.ok) throw new Error("Error al descargar el nivel JSON");
+        nivelData = await respuesta.json();
+        aplicarDatosNivel(nivelData);
+    } catch (error) {
+        console.error("Error al cargar nivel:", error);
+        mensaje.style.color = '#f44336';
+        mensaje.textContent = "Error al cargar World1-1. Se usará la configuración base.";
+    }
+}
+
+function aplicarDatosNivel(data) {
+    if (!data) return;
+
+    // Configurar límites si están definidos en el JSON
+    if (data.MaxDisparos) MAX_DISPAROS = data.MaxDisparos;
+    if (data.MaxRebotes) MAX_REBOTES = data.MaxRebotes;
+
+    // Configurar posición del cubo
+    if (data.Cubo) {
+        cuboInicialX = data.Cubo.X ?? 100;
+        cuboInicialY = data.Cubo.Y ?? 250;
+        if (data.Cubo.Color) cubo.color = data.Cubo.Color;
+    }
+
+    // Configurar posición de la meta
+    if (data.Meta) {
+        objetivo.x = data.Meta.X ?? 700;
+        objetivo.y = data.Meta.Y ?? 250;
+        if (data.Meta.Radio) objetivo.radio = data.Meta.Radio;
+    }
+
+    // Configurar obstáculos
+    obstaculos = data.Obstaculos || data.Bloques || [];
+
+    reiniciarJuego();
+}
+
 function reiniciarJuego() {
-    cubo.x = 100;
-    cubo.y = 250;
+    cubo.x = cuboInicialX;
+    cubo.y = cuboInicialY;
     cubo.vx = 0;
     cubo.vy = 0;
     disparosRestantes = MAX_DISPAROS;
@@ -150,7 +200,7 @@ window.addEventListener('keydown', (e) => {
     }
 });
 
-// Evento de Clic
+// Evento de Clic para Disparo
 canvas.addEventListener('click', (e) => {
     if (victoria || pausado) return;
 
@@ -183,13 +233,46 @@ function procesarRebote() {
     }
 }
 
+// Detección AABB de colisión con obstáculos
+function verificarColisionesObstaculos() {
+    for (let obs of obstaculos) {
+        const obsWidth = obs.Ancho || obs.Width || 30;
+        const obsHeight = obs.Alto || obs.Height || 30;
+
+        if (cubo.x < obs.X + obsWidth &&
+            cubo.x + cubo.tamano > obs.X &&
+            cubo.y < obs.Y + obsHeight &&
+            cubo.y + cubo.tamano > obs.Y) {
+            
+            // Determinar la cara de impacto para invertir dirección
+            const prevX = cubo.x - cubo.vx;
+            const prevY = cubo.y - cubo.vy;
+
+            if (prevX + cubo.tamano <= obs.X || prevX >= obs.X + obsWidth) {
+                cubo.vx *= -1;
+            } else if (prevY + cubo.tamano <= obs.Y || prevY >= obs.Y + obsHeight) {
+                cubo.vy *= -1;
+            } else {
+                cubo.vx *= -1;
+                cubo.vy *= -1;
+            }
+
+            procesarRebote();
+            break;
+        }
+    }
+}
+
 function actualizar() {
     if (victoria || pausado) return;
 
     cubo.x += cubo.vx;
     cubo.y += cubo.vy;
 
-    // Rebotes en bordes
+    // Colisión con obstáculos
+    verificarColisionesObstaculos();
+
+    // Rebotes en bordes del canvas
     if (cubo.x <= 0) {
         cubo.x = 0;
         cubo.vx *= -1;
@@ -210,7 +293,7 @@ function actualizar() {
         procesarRebote();
     }
 
-    // Colisión con el objetivo
+    // Colisión con la Meta
     const centroCuboX = cubo.x + cubo.tamano / 2;
     const centroCuboY = cubo.y + cubo.tamano / 2;
     const dist = Math.hypot(objetivo.x - centroCuboX, objetivo.y - centroCuboY);
@@ -220,7 +303,7 @@ function actualizar() {
         cubo.vx = 0;
         cubo.vy = 0;
         mensaje.style.color = '#4CAF50';
-        mensaje.textContent = "¡Ganaste!";
+        mensaje.textContent = "¡Ganaste World 1-1!";
     }
 }
 
@@ -246,10 +329,17 @@ function dibujarUI() {
 function dibujar() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Dibujar Obstáculos del Nivel
+    for (let obs of obstaculos) {
+        const w = obs.Ancho || obs.Width || 30;
+        const h = obs.Alto || obs.Height || 30;
+        ctx.fillStyle = obs.Color || '#e91e63';
+        ctx.fillRect(obs.X, obs.Y, w, h);
+    }
+
     // Renderizar Sprite del Objetivo (Meta Naranja)
     if (spriteCirculoCargado) {
         ctx.save();
-        // Aplica un filtro de tono/saturación para asegurar que se proyecte en tono naranja (#ff5722)
         ctx.filter = 'sepia(100%) hue-rotate(-20deg) saturate(500%)';
         ctx.drawImage(
             spriteCirculo,
@@ -262,7 +352,7 @@ function dibujar() {
     } else {
         ctx.beginPath();
         ctx.arc(objetivo.x, objetivo.y, objetivo.radio, 0, Math.PI * 2);
-        ctx.fillStyle = objetivo.color; // Naranja (#ff5722)
+        ctx.fillStyle = objetivo.color;
         ctx.fill();
         ctx.closePath();
     }
@@ -284,6 +374,8 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
+// Inicializar el nivel al cargar la página
+cargarNivel(URL_NIVEL_WORLD1);
 gameLoop();
 </script>
 

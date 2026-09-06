@@ -1,0 +1,8 @@
+{
+  "gridSize": 30,
+  "maxShots": 1,
+  "maxBounces": 10,
+  "cuboColor": "#00ADB5",
+  "cubo": { "x": 120, "y": 360 },
+  "meta": { "x": 705, "y": 405 },
+}
