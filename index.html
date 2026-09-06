@@ -54,7 +54,7 @@
     </div>
 
     <canvas id="gameCanvas" width="800" height="500"></canvas>
-    <div id="mensaje">Cargando nivel World1-1...</div>
+    <div id="mensaje">Cargando nivel...</div>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
@@ -62,12 +62,23 @@ const ctx = canvas.getContext('2d');
 const mensaje = document.getElementById('mensaje');
 const btnReiniciar = document.getElementById('btnReiniciar');
 
-// Rutas de audio, imágenes y niveles en GitHub Raw
+// Rutas de audio, imágenes y nivel
 const URL_AUDIO_PING = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Audio/Cube%20Sounds/ping.ogg';
 const URL_AUDIO_BREAK = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Audio/Cube%20Sounds/breakblock.ogg';
 const URL_SPRITE_CUBE = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Sprites/Cube.png';
 const URL_SPRITE_CIRCLE = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Sprites/Circle.png';
 const URL_NIVEL_WORLD1 = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Levels/World1-1.json';
+
+// Nivel por defecto (Respaldo si GitHub Raw falla por CORS en archivo local)
+const NIVEL_DEFAULT = {
+    "MaxDisparos": 5,
+    "MaxRebotes": 10,
+    "Cubo": { "X": 100, "Y": 250, "Color": "#00adb5" },
+    "Meta": { "X": 700, "Y": 250, "Radio": 25 },
+    "Obstaculos": [
+        { "X": 400, "Y": 150, "Ancho": 30, "Alto": 200, "Color": "#e91e63" }
+    ]
+};
 
 // Objetos de Audio
 const sonidoRebote = new Audio(URL_AUDIO_PING);
@@ -86,15 +97,15 @@ spriteCirculo.onload = () => { spriteCirculoCargado = true; };
 
 function reproducirSonidoRebote() {
     sonidoRebote.currentTime = 0;
-    sonidoRebote.play().catch(e => console.log("Interacción requerida para audio:", e));
+    sonidoRebote.play().catch(e => console.log("Audio esperando interacción:", e));
 }
 
 function reproducirSonidoBreak() {
     sonidoBreak.currentTime = 0;
-    sonidoBreak.play().catch(e => console.log("Interacción requerida para audio:", e));
+    sonidoBreak.play().catch(e => console.log("Audio esperando interacción:", e));
 }
 
-// Configuración de límites y variables de control
+// Configuración global
 let MAX_DISPAROS = 5;
 let MAX_REBOTES = 10;
 const VELOCIDAD_PING = 7;
@@ -104,13 +115,10 @@ let rebotesRestantes = MAX_REBOTES;
 let victoria = false;
 let pausado = false;
 
-// Estado del Nivel
-let nivelData = null;
 let obstaculos = [];
 let cuboInicialX = 100;
 let cuboInicialY = 250;
 
-// Propiedades del Cubo
 const cubo = {
     x: 100,
     y: 250,
@@ -120,7 +128,6 @@ const cubo = {
     color: '#00adb5'
 };
 
-// Propiedades del Objetivo (Meta)
 const objetivo = {
     x: 700,
     y: 250,
@@ -128,43 +135,48 @@ const objetivo = {
     color: '#ff5722'
 };
 
-// Cargar Datos del Nivel desde JSON
+// Carga robusta del Nivel JSON
 async function cargarNivel(url) {
     try {
         const respuesta = await fetch(url);
-        if (!respuesta.ok) throw new Error("Error al descargar el nivel JSON");
-        nivelData = await respuesta.json();
-        aplicarDatosNivel(nivelData);
+        if (!respuesta.ok) throw new Error("No se pudo obtener el nivel desde GitHub.");
+        const data = await respuesta.json();
+        aplicarDatosNivel(data);
     } catch (error) {
-        console.error("Error al cargar nivel:", error);
-        mensaje.style.color = '#f44336';
-        mensaje.textContent = "Error al cargar World1-1. Se usará la configuración base.";
+        console.warn("CORS/Red error, usando respaldo interno:", error);
+        aplicarDatosNivel(NIVEL_DEFAULT);
     }
 }
 
 function aplicarDatosNivel(data) {
     if (!data) return;
 
-    // Configurar límites si están definidos en el JSON
-    if (data.MaxDisparos) MAX_DISPAROS = data.MaxDisparos;
-    if (data.MaxRebotes) MAX_REBOTES = data.MaxRebotes;
+    MAX_DISPAROS = data.MaxDisparos || data.maxDisparos || 5;
+    MAX_REBOTES = data.MaxRebotes || data.maxRebotes || 10;
 
-    // Configurar posición del cubo
-    if (data.Cubo) {
-        cuboInicialX = data.Cubo.X ?? 100;
-        cuboInicialY = data.Cubo.Y ?? 250;
-        if (data.Cubo.Color) cubo.color = data.Cubo.Color;
+    const dataCubo = data.Cubo || data.cubo;
+    if (dataCubo) {
+        cuboInicialX = dataCubo.X ?? dataCubo.x ?? 100;
+        cuboInicialY = dataCubo.Y ?? dataCubo.y ?? 250;
+        if (dataCubo.Color || dataCubo.color) cubo.color = dataCubo.Color || dataCubo.color;
     }
 
-    // Configurar posición de la meta
-    if (data.Meta) {
-        objetivo.x = data.Meta.X ?? 700;
-        objetivo.y = data.Meta.Y ?? 250;
-        if (data.Meta.Radio) objetivo.radio = data.Meta.Radio;
+    const dataMeta = data.Meta || data.meta;
+    if (dataMeta) {
+        objetivo.x = dataMeta.X ?? dataMeta.x ?? 700;
+        objetivo.y = dataMeta.Y ?? dataMeta.y ?? 250;
+        if (dataMeta.Radio || dataMeta.radio) objetivo.radio = dataMeta.Radio || dataMeta.radio;
     }
 
-    // Configurar obstáculos
-    obstaculos = data.Obstaculos || data.Bloques || [];
+    // Acepta múltiples variaciones de nombres de propiedades del editor C#
+    const listaObstaculos = data.Obstaculos || data.obstaculos || data.Bloques || data.bloques || [];
+    obstaculos = listaObstaculos.map(obs => ({
+        x: obs.X ?? obs.x ?? 0,
+        y: obs.Y ?? obs.y ?? 0,
+        w: obs.Ancho ?? obs.ancho ?? obs.Width ?? obs.width ?? 30,
+        h: obs.Alto ?? obs.alto ?? obs.Height ?? obs.height ?? 30,
+        color: obs.Color || obs.color || '#e91e63'
+    }));
 
     reiniciarJuego();
 }
@@ -184,11 +196,9 @@ function reiniciarJuego() {
 
 btnReiniciar.addEventListener('click', reiniciarJuego);
 
-// Control de Pausa
 window.addEventListener('keydown', (e) => {
     if (e.key === 'p' || e.key === 'P') {
         if (victoria) return;
-        
         pausado = !pausado;
         if (pausado) {
             mensaje.style.color = '#ffeb3b';
@@ -200,7 +210,6 @@ window.addEventListener('keydown', (e) => {
     }
 });
 
-// Evento de Clic para Disparo
 canvas.addEventListener('click', (e) => {
     if (victoria || pausado) return;
 
@@ -222,7 +231,6 @@ canvas.addEventListener('click', (e) => {
 
 function procesarRebote() {
     rebotesRestantes--;
-    
     if (rebotesRestantes <= 0) {
         reproducirSonidoBreak();
         reiniciarJuego();
@@ -233,24 +241,19 @@ function procesarRebote() {
     }
 }
 
-// Detección AABB de colisión con obstáculos
 function verificarColisionesObstaculos() {
     for (let obs of obstaculos) {
-        const obsWidth = obs.Ancho || obs.Width || 30;
-        const obsHeight = obs.Alto || obs.Height || 30;
-
-        if (cubo.x < obs.X + obsWidth &&
-            cubo.x + cubo.tamano > obs.X &&
-            cubo.y < obs.Y + obsHeight &&
-            cubo.y + cubo.tamano > obs.Y) {
+        if (cubo.x < obs.x + obs.w &&
+            cubo.x + cubo.tamano > obs.x &&
+            cubo.y < obs.y + obs.h &&
+            cubo.y + cubo.tamano > obs.y) {
             
-            // Determinar la cara de impacto para invertir dirección
             const prevX = cubo.x - cubo.vx;
             const prevY = cubo.y - cubo.vy;
 
-            if (prevX + cubo.tamano <= obs.X || prevX >= obs.X + obsWidth) {
+            if (prevX + cubo.tamano <= obs.x || prevX >= obs.x + obs.w) {
                 cubo.vx *= -1;
-            } else if (prevY + cubo.tamano <= obs.Y || prevY >= obs.Y + obsHeight) {
+            } else if (prevY + cubo.tamano <= obs.y || prevY >= obs.y + obs.h) {
                 cubo.vy *= -1;
             } else {
                 cubo.vx *= -1;
@@ -269,10 +272,8 @@ function actualizar() {
     cubo.x += cubo.vx;
     cubo.y += cubo.vy;
 
-    // Colisión con obstáculos
     verificarColisionesObstaculos();
 
-    // Rebotes en bordes del canvas
     if (cubo.x <= 0) {
         cubo.x = 0;
         cubo.vx *= -1;
@@ -293,7 +294,6 @@ function actualizar() {
         procesarRebote();
     }
 
-    // Colisión con la Meta
     const centroCuboX = cubo.x + cubo.tamano / 2;
     const centroCuboY = cubo.y + cubo.tamano / 2;
     const dist = Math.hypot(objetivo.x - centroCuboX, objetivo.y - centroCuboY);
@@ -329,15 +329,13 @@ function dibujarUI() {
 function dibujar() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Dibujar Obstáculos del Nivel
+    // Dibujar los obstáculos
     for (let obs of obstaculos) {
-        const w = obs.Ancho || obs.Width || 30;
-        const h = obs.Alto || obs.Height || 30;
-        ctx.fillStyle = obs.Color || '#e91e63';
-        ctx.fillRect(obs.X, obs.Y, w, h);
+        ctx.fillStyle = obs.color;
+        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
     }
 
-    // Renderizar Sprite del Objetivo (Meta Naranja)
+    // Dibujar la Meta
     if (spriteCirculoCargado) {
         ctx.save();
         ctx.filter = 'sepia(100%) hue-rotate(-20deg) saturate(500%)';
@@ -357,7 +355,7 @@ function dibujar() {
         ctx.closePath();
     }
 
-    // Renderizar Sprite del Cubo
+    // Dibujar el Cubo
     if (spriteCuboCargado) {
         ctx.drawImage(spriteCubo, cubo.x, cubo.y, cubo.tamano, cubo.tamano);
     } else {
@@ -374,7 +372,7 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// Inicializar el nivel al cargar la página
+// Inicialización
 cargarNivel(URL_NIVEL_WORLD1);
 gameLoop();
 </script>
