@@ -9,19 +9,20 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             background-color: #1a1a1a;
             color: white;
             font-family: Arial, sans-serif;
+            overflow: hidden;
         }
         .top-bar {
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             display: flex;
             gap: 10px;
         }
         button {
-            padding: 8px 16px;
+            padding: 10px 20px;
             font-size: 16px;
             font-weight: bold;
             color: white;
@@ -33,10 +34,14 @@
         button:hover {
             background-color: #e64a19;
         }
+        /* Lienzo en relación de aspecto 16:9 y tamaño ampliado */
         canvas {
+            width: 85vw;
+            max-width: 1280px;
+            aspect-ratio: 16 / 9;
             border: 3px solid #ffffff;
             background-color: #111;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            box-shadow: 0 0 25px rgba(0,0,0,0.7);
         }
         #mensaje {
             margin-top: 15px;
@@ -53,7 +58,8 @@
         <button id="btnReiniciar">Reiniciar Juego</button>
     </div>
 
-    <canvas id="gameCanvas" width="800" height="500"></canvas>
+    <!-- Resolución interna ajustada a 1280x720 (16:9) -->
+    <canvas id="gameCanvas" width="1280" height="720"></canvas>
     <div id="mensaje">Cargando nivel...</div>
 
 <script>
@@ -69,15 +75,24 @@ const URL_SPRITE_CUBE = 'https://raw.githubusercontent.com/sussybakauser/PING-1.
 const URL_SPRITE_CIRCLE = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Sprites/Circle.png';
 const URL_NIVEL_WORLD1 = 'https://raw.githubusercontent.com/sussybakauser/PING-1.5-In-Website/main/Levels/World1-1.json';
 
-// Nivel por defecto (Respaldo si GitHub Raw falla por CORS en archivo local)
+// Nivel por defecto (World1-1)
 const NIVEL_DEFAULT = {
-    "MaxDisparos": 5,
-    "MaxRebotes": 10,
-    "Cubo": { "X": 100, "Y": 250, "Color": "#00adb5" },
-    "Meta": { "X": 700, "Y": 250, "Radio": 25 },
-    "Obstaculos": [
-        { "X": 400, "Y": 150, "Ancho": 30, "Alto": 200, "Color": "#e91e63" }
-    ]
+  "gridSize": 30,
+  "maxShots": 1,
+  "maxBounces": 10,
+  "cuboColor": "#00ADB5",
+  "cubo": { "x": 120, "y": 360 },
+  "meta": { "x": 705, "y": 405 },
+  "obstaculos": [ 
+    { "x": 480, "y": 300, "color": "#FFFF00" }, { "x": 510, "y": 330, "color": "#FFFF00" }, 
+    { "x": 540, "y": 360, "color": "#FFFF00" }, { "x": 540, "y": 390, "color": "#FFFF00" }, 
+    { "x": 570, "y": 390, "color": "#FFFF00" }, { "x": 540, "y": 420, "color": "#FFFF00" }, 
+    { "x": 510, "y": 450, "color": "#FFFF00" }, { "x": 480, "y": 480, "color": "#FFFF00" }, 
+    { "x": 480, "y": 390, "color": "#FFFF00" }, { "x": 360, "y": 390, "color": "#FFFF00" }, 
+    { "x": 330, "y": 390, "color": "#FFFF00" }, { "x": 300, "y": 390, "color": "#FFFF00" }, 
+    { "x": 390, "y": 390, "color": "#FFFF00" }, { "x": 420, "y": 390, "color": "#FFFF00" }, 
+    { "x": 450, "y": 390, "color": "#FFFF00" }, { "x": 510, "y": 390, "color": "#FFFF00" } 
+  ]
 };
 
 // Objetos de Audio
@@ -108,7 +123,8 @@ function reproducirSonidoBreak() {
 // Configuración global
 let MAX_DISPAROS = 5;
 let MAX_REBOTES = 10;
-const VELOCIDAD_PING = 7;
+let TAMANO_GRID = 30;
+const VELOCIDAD_PING = 9;
 
 let disparosRestantes = MAX_DISPAROS;
 let rebotesRestantes = MAX_REBOTES;
@@ -135,7 +151,7 @@ const objetivo = {
     color: '#ff5722'
 };
 
-// Carga robusta del Nivel JSON
+// Carga del Nivel JSON
 async function cargarNivel(url) {
     try {
         const respuesta = await fetch(url);
@@ -151,31 +167,32 @@ async function cargarNivel(url) {
 function aplicarDatosNivel(data) {
     if (!data) return;
 
-    MAX_DISPAROS = data.MaxDisparos || data.maxDisparos || 5;
-    MAX_REBOTES = data.MaxRebotes || data.maxRebotes || 10;
+    MAX_DISPAROS = data.maxShots ?? data.MaxDisparos ?? 5;
+    MAX_REBOTES = data.maxBounces ?? data.MaxRebotes ?? 10;
+    TAMANO_GRID = data.gridSize ?? data.GridSize ?? 30;
 
-    const dataCubo = data.Cubo || data.cubo;
+    const dataCubo = data.cubo || data.Cubo;
     if (dataCubo) {
-        cuboInicialX = dataCubo.X ?? dataCubo.x ?? 100;
-        cuboInicialY = dataCubo.Y ?? dataCubo.y ?? 250;
-        if (dataCubo.Color || dataCubo.color) cubo.color = dataCubo.Color || dataCubo.color;
+        cuboInicialX = dataCubo.x ?? dataCubo.X ?? 100;
+        cuboInicialY = dataCubo.y ?? dataCubo.Y ?? 250;
+        cubo.color = data.cuboColor || dataCubo.color || dataCubo.Color || '#00adb5';
+        cubo.tamano = TAMANO_GRID;
     }
 
-    const dataMeta = data.Meta || data.meta;
+    const dataMeta = data.meta || data.Meta;
     if (dataMeta) {
-        objetivo.x = dataMeta.X ?? dataMeta.x ?? 700;
-        objetivo.y = dataMeta.Y ?? dataMeta.y ?? 250;
-        if (dataMeta.Radio || dataMeta.radio) objetivo.radio = dataMeta.Radio || dataMeta.radio;
+        objetivo.x = dataMeta.x ?? dataMeta.X ?? 700;
+        objetivo.y = dataMeta.y ?? dataMeta.Y ?? 250;
+        objetivo.radio = dataMeta.radio ?? dataMeta.Radio ?? (TAMANO_GRID / 2);
     }
 
-    // Acepta múltiples variaciones de nombres de propiedades del editor C#
-    const listaObstaculos = data.Obstaculos || data.obstaculos || data.Bloques || data.bloques || [];
+    const listaObstaculos = data.obstaculos || data.Obstaculos || data.bloques || data.Bloques || [];
     obstaculos = listaObstaculos.map(obs => ({
-        x: obs.X ?? obs.x ?? 0,
-        y: obs.Y ?? obs.y ?? 0,
-        w: obs.Ancho ?? obs.ancho ?? obs.Width ?? obs.width ?? 30,
-        h: obs.Alto ?? obs.alto ?? obs.Height ?? obs.height ?? 30,
-        color: obs.Color || obs.color || '#e91e63'
+        x: obs.x ?? obs.X ?? 0,
+        y: obs.y ?? obs.Y ?? 0,
+        w: obs.w ?? obs.width ?? obs.Ancho ?? TAMANO_GRID,
+        h: obs.h ?? obs.height ?? obs.Alto ?? TAMANO_GRID,
+        color: obs.color || obs.Color || '#FFFF00'
     }));
 
     reiniciarJuego();
@@ -210,13 +227,17 @@ window.addEventListener('keydown', (e) => {
     }
 });
 
+// Clics calibrados según la escala responsiva del canvas
 canvas.addEventListener('click', (e) => {
     if (victoria || pausado) return;
 
     if (disparosRestantes > 0) {
         const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        const mouseX = (e.clientX - rect.left) * scaleX;
+        const mouseY = (e.clientY - rect.top) * scaleY;
 
         const dx = mouseX - (cubo.x + cubo.tamano / 2);
         const dy = mouseY - (cubo.y + cubo.tamano / 2);
@@ -226,6 +247,9 @@ canvas.addEventListener('click', (e) => {
         cubo.vy = Math.sin(angulo) * VELOCIDAD_PING;
 
         disparosRestantes--;
+    } else if (cubo.vx === 0 && cubo.vy === 0) {
+        mensaje.style.color = '#f44336';
+        mensaje.textContent = "¡Sin disparos restantes! Reinicia el nivel.";
     }
 });
 
@@ -308,18 +332,18 @@ function actualizar() {
 }
 
 function dibujarUI() {
-    ctx.font = '16px Arial';
+    ctx.font = '20px Arial';
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'left';
     
-    ctx.fillText(`Disparos: ${disparosRestantes}/${MAX_DISPAROS}`, 20, canvas.height - 20);
-    ctx.fillText(`Rebotes restantes: ${rebotesRestantes}`, 20, 30);
+    ctx.fillText(`Disparos: ${disparosRestantes}/${MAX_DISPAROS}`, 25, canvas.height - 25);
+    ctx.fillText(`Rebotes restantes: ${rebotesRestantes}`, 25, 40);
 
     if (pausado) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        ctx.font = '30px Arial';
+        ctx.font = '40px Arial';
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
         ctx.fillText('PAUSA', canvas.width / 2, canvas.height / 2);
@@ -329,13 +353,11 @@ function dibujarUI() {
 function dibujar() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Dibujar los obstáculos
     for (let obs of obstaculos) {
         ctx.fillStyle = obs.color;
         ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
     }
 
-    // Dibujar la Meta
     if (spriteCirculoCargado) {
         ctx.save();
         ctx.filter = 'sepia(100%) hue-rotate(-20deg) saturate(500%)';
@@ -355,7 +377,6 @@ function dibujar() {
         ctx.closePath();
     }
 
-    // Dibujar el Cubo
     if (spriteCuboCargado) {
         ctx.drawImage(spriteCubo, cubo.x, cubo.y, cubo.tamano, cubo.tamano);
     } else {
@@ -372,7 +393,7 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// Inicialización
+// Inicializar
 cargarNivel(URL_NIVEL_WORLD1);
 gameLoop();
 </script>

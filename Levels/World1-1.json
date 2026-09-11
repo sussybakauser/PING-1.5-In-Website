@@ -4,6 +4,6 @@
   "maxBounces": 10,
   "cuboColor": "#00ADB5",
   "cubo": { "x": 120, "y": 360 },
-  "meta": { "x": 705, "y": 405 },
-  "obstaculos": [ { "x": 480, "y": 300, "color": "#FFFF00" }, { "x": 510, "y": 330, "color": "#FFFF00" }, { "x": 540, "y": 360, "color": "#FFFF00" }, { "x": 540, "y": 390, "color": "#FFFF00" }, { "x": 570, "y": 390, "color": "#FFFF00" }, { "x": 540, "y": 420, "color": "#FFFF00" }, { "x": 510, "y": 450, "color": "#FFFF00" }, { "x": 480, "y": 480, "color": "#FFFF00" }, { "x": 480, "y": 390, "color": "#FFFF00" }, { "x": 360, "y": 390, "color": "#FFFF00" }, { "x": 330, "y": 390, "color": "#FFFF00" }, { "x": 300, "y": 390, "color": "#FFFF00" }, { "x": 390, "y": 390, "color": "#FFFF00" }, { "x": 420, "y": 390, "color": "#FFFF00" }, { "x": 450, "y": 390, "color": "#FFFF00" }, { "x": 510, "y": 390, "color": "#FFFF00" } ]
+  "meta": { "x": 1200, "y": 600 },
+  "obstaculos": [ { "x": 960, "y": 690, "color": "#FFFF00" }, { "x": 990, "y": 660, "color": "#FFFF00" }, { "x": 1020, "y": 630, "color": "#FFFF00" }, { "x": 1050, "y": 600, "color": "#FFFF00" }, { "x": 1020, "y": 600, "color": "#FFFF00" }, { "x": 990, "y": 600, "color": "#FFFF00" }, { "x": 1020, "y": 570, "color": "#FFFF00" }, { "x": 990, "y": 540, "color": "#FFFF00" }, { "x": 960, "y": 510, "color": "#FFFF00" }, { "x": 900, "y": 600, "color": "#FFFF00" }, { "x": 930, "y": 600, "color": "#FFFF00" }, { "x": 960, "y": 600, "color": "#FFFF00" }, { "x": 870, "y": 600, "color": "#FFFF00" }, { "x": 840, "y": 600, "color": "#FFFF00" }, { "x": 810, "y": 600, "color": "#FFFF00" }, { "x": 780, "y": 600, "color": "#FFFF00" } ]
 }
